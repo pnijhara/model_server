@@ -25,21 +25,22 @@ gsutil mb gs://models-repository
 
 You can download the model from the link provided above nad upload it to GCS:
 ```shell script
-gsutil cp -r docs/examples/model_repository gs://triton-inference-server-repository/model_repository
+gsutil cp -r 1 gs://models-repository/1
 ```
 
 ## Bucket permissions
 
 Make sure the bucket permissions are set so that the inference server can access the model repository. If the bucket 
-is public then no additional changes are needed and you can proceed to "Running The Inference Server" section.
+is public then no additional changes are needed and you can proceed to _Using OpenVINO Model Server_ section.
 
-If bucket permissions need to be set with the GOOGLE_APPLICATION_CREDENTIALS environment variable then perform the 
+If bucket permissions need to be set with the _GOOGLE_APPLICATION_CREDENTIALS_ environment variable then perform the 
 following steps:
 
-* Generate Google service account JSON with proper permissions called gcp-creds.json.
+* Generate Google service account JSON with proper permissions called gcp-creds.json 
+(you can follow these instructions to create Service Account and download JSON: 
+https://cloud.google.com/docs/authentication/getting-started#creating_a_service_account)
 * Create a Kubernetes secret from this file:
 
-      $ kubectl create configmap gcpcreds --from-literal "project-id=myproject"
       $ kubectl create secret generic gcpcreds --from-file gcp-creds.json
 
 * Modify templates/deployment.yaml to include the GOOGLE_APPLICATION_CREDENTIALS environment variable:
@@ -51,27 +52,27 @@ following steps:
 * Modify templates/deployment.yaml to mount the secret in a volume at /secret:
 
       volumeMounts:
-        - name: vsecret
+        - name: gcpcreds
           mountPath: "/secret"
           readOnly: true
       ...
       volumes:
-      - name: vsecret
+      - name: gcpcreds
         secret:
           secretName: gcpcreds
           
 ## Deploy the Model Server
 
-Deploy the Model Server using helm:
+Deploy the Model Server using _helm_:
 ```shell script
-helm install --name ovms ovms
+helm install ovms ovms
 ```
 
-Use kubectl to see status and wait until the model server pod is running:
+Use _kubectl_ to see status and wait until the model server pod is running:
 ```shell script
 $ kubectl get pods
-NAME                                               READY   STATUS    RESTARTS   AGE
-example-triton-inference-server-5f74b55885-n6lt7   1/1     Running   0          2m21s
+NAME                    READY   STATUS    RESTARTS   AGE
+ovms-5fd8d6b845-w87jl   1/1     Running   0          27s
 ```
 
 ## Using OpenVINO Model Server
@@ -106,13 +107,12 @@ Image 'images/mug.jpg':
 
 Once you've finished using the inference server you should use helm to delete the deployment:
 ```shell script
-$ helm list
-NAME            REVISION  UPDATED                   STATUS    CHART                          APP VERSION   NAMESPACE
-example         1         Wed Feb 27 22:16:55 2019  DEPLOYED  triton-inference-server-1.0.0  1.0           default
-example-metrics       1               Tue Jan 21 12:24:07 2020        DEPLOYED        prometheus-operator-6.18.0       0.32.0          default
+$ helm ls
+NAME    NAMESPACE       REVISION        UPDATED                                 STATUS          CHART           APP VERSION
+ovms    default         1               2020-04-20 11:47:18.263135654 +0000 UTC deployed        ovms-v1.0.0
 
-$ helm delete --purge example
-$ helm delete --purge example-metrics
+$ helm uninstall ovms
+release "ovms" uninstalled
 ```
 
 You may also want to delete the GCS bucket you created to hold the model repository:

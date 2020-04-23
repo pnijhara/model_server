@@ -19,16 +19,24 @@ spec:
       - name: ovms-resnet
         image: intelaipg/openvino-model-server:latest
         ports:
-        - containerPort: 80
+        - containerPort: 8080
         readinessProbe:
           tcpSocket:
-            port: 80
+            port: 8080
           initialDelaySeconds: 5
           periodSeconds: 10
         env:
         - name: LOG_LEVEL
           value: "DEBUG"
         - name: "GOOGLE_APPLICATION_CREDENTIALS"
-          value: ""
+          value: /secret/gcp-creds.json
         command: ["/ie-serving-py/start_server.sh"]
-        args: ["ie_serving", "model", "--model_path", "gs://public-artifacts/intelai_public_models/resnet_50_i8", "--model_name", "resnet", "--port", "80", "--batch_size", "auto"]
+        args: ["ie_serving", "model", "--model_path", "gs://models-repository", "--model_name", "icnet-camvid-ava-0001", "--port", "8080", "--batch_size", "auto"]
+        volumeMounts:
+        - name: gcpcreds
+          mountPath: "/secret"
+          readOnly: true
+      volumes:
+      - name: gcpcreds
+        secret:
+          secretName: gcpcreds

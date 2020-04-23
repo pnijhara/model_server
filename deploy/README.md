@@ -1,11 +1,11 @@
 # Kubernetes deployment
 
 A helm chart for installing OpenVino Model Server on Kubernetes cluster is provided. By default the cluster contains 
-a single instance of the inference server but the replicaCount configuration parameter can be set to create a cluster 
+a single instance of the server but the _replicas_ configuration parameter can be set to create a cluster 
 of any size, as described below. This guide assumes you already have a functional Kubernetes cluster and helm 
 installed (see below for instructions on installing helm).
 
-The steps below describe how to set-up a model repository, use helm to launch the inference server, and then send 
+The steps below describe how to setup a model repository, use helm to launch the inference server and then send 
 inference requests to the running server. 
 
 ## Installing Helm
@@ -20,12 +20,12 @@ from https://download.01.org/opencv/2020/openvinotoolkit/2020.2/open_model_zoo/m
 OpenVINO Model Server needs models that it will make available for inferencing. For example you can 
 use Google Cloud Storage bucket:
 ```shell script
-gsutil mb gs://models-repository
+gsutil mb gs://model-repository
 ```
 
 You can download the model from the link provided above nad upload it to GCS:
 ```shell script
-gsutil cp -r 1 gs://models-repository/1
+gsutil cp -r 1 gs://model-repository/1
 ```
 
 ## Bucket permissions
@@ -36,7 +36,8 @@ is public then no additional changes are needed and you can proceed to _Using Op
 If bucket permissions need to be set with the _GOOGLE_APPLICATION_CREDENTIALS_ environment variable then perform the 
 following steps:
 
-* Generate Google service account JSON with proper permissions called gcp-creds.json 
+* Generate Google service account JSON with permissions: _Storage Legacy Bucket Reader_, _Storage Legacy Object Reader_,
+ _Storage Object Viewer_ . Name a file for example: _gcp-creds.json_ 
 (you can follow these instructions to create Service Account and download JSON: 
 https://cloud.google.com/docs/authentication/getting-started#creating_a_service_account)
 * Create a Kubernetes secret from this file:
@@ -75,37 +76,73 @@ NAME                    READY   STATUS    RESTARTS   AGE
 ovms-5fd8d6b845-w87jl   1/1     Running   0          27s
 ```
 
-## Using OpenVINO Model Server
+By default the OVMS deploys with 1 instance. If you would like to scale it, you could override value in values.yaml
+file or by passing _--set_ flag to _helm install_:
 
-Now that the inference server is running you can send HTTP or GRPC requests to it to perform inferencing. 
-By default, the inferencing service is exposed with a LoadBalancer service type. Use the following to find the 
-external IP for the inference server. In this case it is 34.83.9.133:
 ```shell script
-$ kubectl get services
-NAME                             TYPE           CLUSTER-IP     EXTERNAL-IP   PORT(S)                                        AGE
-...
-example-triton-inference-server  LoadBalancer   10.18.13.28    34.83.9.133   8000:30249/TCP,8001:30068/TCP,8002:32723/TCP   47m
+helm install ovms ovms --set replicas=3
 ```
 
-The inference server exposes an HTTP endpoint on port 8000, and GRPC endpoint on port 8001 and a Prometheus metrics endpoint on port 8002. You can use curl to get the status of the inference server from the HTTP endpoint:
+## Using OpenVINO Model Server
 
-$ curl 34.83.9.133:8000/api/status
-Follow the instructions to get the example image classification client that can be used to perform inferencing using image classification models being served by the inference server. For example:
+Now that the server is running you can send HTTP or gRPC requests to it to perform inferencing. 
+By default, the service is exposed with a LoadBalancer service type. Use the following to find the 
+external IP for the server:
+```shell script
+pskindel@ovms_dev:~$ kubectl get svc
+NAME                    TYPE           CLUSTER-IP      EXTERNAL-IP     PORT(S)                         AGE
+openvino-model-server   LoadBalancer   10.121.14.253   34.65.153.232   8080:30043/TCP,8081:32606/TCP   59m
 
-$ image_client -u 34.83.9.133:8000 -m resnet50_netdef -s INCEPTION -c3 mug.jpg
-Request 0, batch size 1
-Image 'images/mug.jpg':
-    504 (COFFEE MUG) = 0.723992
-    968 (CUP) = 0.270953
-    967 (ESPRESSO) = 0.00115997
+```
 
+The server exposes an gRPC endpoint on 8080 port and REST endpoint on 8081 port.
 
+Follow the instructions here: https://github.com/IntelAI/OpenVINO-model-server/tree/master/example_client#submitting-grpc-requests-based-on-a-dataset-from-a-list-of-jpeg-files 
+to get the example image classification client that can be used to perform inferencing using 
+image classification models being served by the server. For example:
 
+```shell script
+python jpeg_classification.py --grpc_port 8080 --input_name data --output_name prob
+	Model name: resnet
+	Images list file: input_images.txt
 
+images/airliner.jpeg (1, 3, 224, 224) ; data range: 0.0 : 255.0
+Processing time: 73.00 ms; speed 2.00 fps 13.79
+Detected: 895  Should be: 404
+images/arctic-fox.jpeg (1, 3, 224, 224) ; data range: 7.0 : 255.0
+Processing time: 52.00 ms; speed 2.00 fps 19.06
+Detected: 279  Should be: 279
+images/bee.jpeg (1, 3, 224, 224) ; data range: 0.0 : 255.0
+Processing time: 82.00 ms; speed 2.00 fps 12.2
+Detected: 309  Should be: 309
+images/golden_retriever.jpeg (1, 3, 224, 224) ; data range: 0.0 : 255.0
+Processing time: 86.00 ms; speed 2.00 fps 11.69
+Detected: 207  Should be: 207
+images/gorilla.jpeg (1, 3, 224, 224) ; data range: 0.0 : 255.0
+Processing time: 65.00 ms; speed 2.00 fps 15.39
+Detected: 366  Should be: 366
+images/magnetic_compass.jpeg (1, 3, 224, 224) ; data range: 0.0 : 247.0
+Processing time: 51.00 ms; speed 2.00 fps 19.7
+Detected: 635  Should be: 635
+images/peacock.jpeg (1, 3, 224, 224) ; data range: 0.0 : 255.0
+Processing time: 61.00 ms; speed 2.00 fps 16.28
+Detected: 84  Should be: 84
+images/pelican.jpeg (1, 3, 224, 224) ; data range: 0.0 : 255.0
+Processing time: 61.00 ms; speed 2.00 fps 16.41
+Detected: 144  Should be: 144
+images/snail.jpeg (1, 3, 224, 224) ; data range: 0.0 : 248.0
+Processing time: 56.00 ms; speed 2.00 fps 17.74
+Detected: 113  Should be: 113
+images/zebra.jpeg (1, 3, 224, 224) ; data range: 0.0 : 255.0
+Processing time: 73.00 ms; speed 2.00 fps 13.68
+Detected: 340  Should be: 340
+
+Overall accuracy= 90.0
+```
 
 ## Cleanup
 
-Once you've finished using the inference server you should use helm to delete the deployment:
+Once you've finished using the server you should use helm to uninstall the chart:
 ```shell script
 $ helm ls
 NAME    NAMESPACE       REVISION        UPDATED                                 STATUS          CHART           APP VERSION
@@ -117,5 +154,5 @@ release "ovms" uninstalled
 
 You may also want to delete the GCS bucket you created to hold the model repository:
 ```shell script
-$ gsutil rm -r gs://models-repository
+$ gsutil rm -r gs://model-repository
 ```

@@ -7,6 +7,11 @@ spec:
     - port: 8080
       protocol: TCP
       targetPort: 8080
+      name: grpc
+    - port: 8081
+      protocol: TCP
+      targetPort: 8081
+      name: rest
   selector:
-    role: model_server
+    app: ovms
   type: LoadBalancer

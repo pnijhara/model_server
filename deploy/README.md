@@ -102,7 +102,7 @@ to get the example image classification client that can be used to perform infer
 image classification models being served by the server. For example:
 
 ```shell script
-python jpeg_classification.py --grpc_port 8080 --input_name data --output_name prob
+python jpeg_classification.py --grpc_port 8080 --grpc_address 34.65.153.232 --input_name data --output_name prob
 	Model name: resnet
 	Images list file: input_images.txt
 

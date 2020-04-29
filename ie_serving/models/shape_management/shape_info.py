@@ -99,7 +99,7 @@ class ShapeInfo:
 
     def get_shape_tuple(self, shape: list):
         try:
-            shape = tuple([int(dim) for dim in shape])
+            shape = tuple(int(dim) for dim in shape)
         except Exception as e:
             logger.error("Error getting shape tuple: {}"
                          .format(str(e)))
